@@ -165,7 +165,9 @@ function updateNPCLiveState() {
     const loc = PLAYER.location;
     
     if (!NPC_DB[loc]) {
-        NPC_DB[loc] = JSON.parse(JSON.stringify(NPC_TEMPLATES[loc] || []));
+        const templates = NPC_TEMPLATES[loc] || [];
+        const shops = SHOPS[loc] || []; // Load dari shops.js
+        NPC_DB[loc] = JSON.parse(JSON.stringify([...templates, ...shops]));
     }
 
     NPC_DB[loc].forEach(npc => {
@@ -173,7 +175,7 @@ function updateNPCLiveState() {
             const isWork = WORLD.hour >= npc.schedule.work.s && WORLD.hour < npc.schedule.work.e;
             npc.currentLoc = isWork ? npc.schedule.work.l : npc.schedule.rest.l;
         } else {
-            npc.currentLoc = "Sekitar " + loc;
+            npc.currentLoc = npc.currentLoc || "Sekitar " + loc;
         }
 
         if (PLAYER.status.hygiene < 30) npc.mood = "Risih";
@@ -326,19 +328,38 @@ async function handleInput() {
 
     if (currentTarget) {
         const intimacy = currentTarget.chatCount > 10 ? "Sangat Akrab & Perhatian" : "Kenalan";
+        const worldCtx = `JAM: ${WORLD.hour}:${WORLD.minute}, CUACA: ${WORLD.weather}, EDRIN: HP ${PLAYER.status.hp}, HYG ${PLAYER.status.hygiene}%`;
         
         const context = `
-            Role: ${currentTarget.name} (${currentTarget.role}). 
+            Kamu adalah ${currentTarget.name} (${currentTarget.role}). ${currentTarget.bio || ""}
             Mood: ${currentTarget.mood}. Kedekatan: ${intimacy}.
-            Higienitas Edrin: ${PLAYER.status.hygiene}/100.
-            Status Edrin: HP ${PLAYER.status.hp}, Tidur ${PLAYER.status.sleep} jam.
-            Tugas: Balas Edrin: "${val}". Jika higienitas rendah (<30), beri tahu dia dengan sopan. Jika dia lelah, sarankan istirahat.
+            Status Dunia: ${worldCtx}. Memori: ${currentTarget.memories.join(". ")}
+            
+            Tugas: 
+            1. Balas Edrin: "${val}". Jika kotor (<30 HYG), tegur.
+            2. Ciptakan tugas dinamis (minta bahan/bantuan) sesuai situasi.
+            3. Jika Edrin menawar, tentukan harga (price_mod).
+            4. Ingat 1 fakta baru.
+            
+            Format JSON murni: {"reply": "...", "new_fact": "...", "price_mod": 1.0}
         `;
-        const res = await callGemini(context, val);
-        addLog(res, "npc", currentTarget.name);
-        
-        currentTarget.chatCount++;
-        if (currentTarget.chatCount % 3 === 0) summarizeMemory(currentTarget, val, res);
+        try {
+            const raw = await callGemini(context, val);
+            const data = JSON.parse(raw.replace(/```json|```/gi, "").trim());
+            addLog(data.reply, "npc", currentTarget.name);
+            
+            if (data.price_mod) currentTarget.tempMarkup = data.price_mod;
+            if (data.new_fact) {
+                currentTarget.memories.push(data.new_fact);
+                if (currentTarget.memories.length > 15) {
+                    const summary = await callGemini("Ringkas ingatan jadi biografi padat.", currentTarget.memories.join(". "));
+                    currentTarget.memories = [summary];
+                }
+            }
+            currentTarget.chatCount++;
+        } catch (e) {
+            addLog("...", "npc", currentTarget.name);
+        }
     } else {
         const res = await callGemini(`Narator RPG. Lokasi: ${PLAYER.location}. Aksi: ${val}`, val);
         addLog(res, "narrator");
@@ -355,12 +376,13 @@ function processTrade(type, itemName) {
         });
 
         if (!itemInStock || itemInStock.qty <= 0) {
-            addLog(`"${itemName}" tidak tersedia di stok.`, "npc", npc.name);
+            addLog(`"${itemName}" tidak tersedia.`, "npc", npc.name);
             return;
         }
 
         const detail = getItem(itemInStock.id);
-        const price = Math.floor(detail.val * WORLD.economyMod);
+        const currentMarkup = npc.tempMarkup || npc.markup || 1.0;
+        const price = Math.floor(detail.val * WORLD.economyMod * currentMarkup);
 
         if (PLAYER.status.gold >= price) {
             PLAYER.status.gold -= price;
@@ -379,7 +401,7 @@ function processTrade(type, itemName) {
         const playerItemIndex = PLAYER.inventory.findIndex(pi => pi.name.toLowerCase() === itemName.toLowerCase());
         
         if (playerItemIndex === -1) {
-            addLog(`Kamu tidak memiliki "${itemName}" di tas.`, "system");
+            addLog(`Kamu tidak memiliki "${itemName}".`, "system");
             return;
         }
 
@@ -391,11 +413,6 @@ function processTrade(type, itemName) {
         pItem.qty--;
         
         if (pItem.qty <= 0) PLAYER.inventory.splice(playerItemIndex, 1);
-
-        const npcStock = npc.inventory.find(ni => ni.id === pItem.id);
-        if (npcStock) npcStock.qty++;
-        else npc.inventory.push({ id: pItem.id, qty: 1 });
-
         addLog(`Kamu menjual ${detail.name} seharga ${sellPrice} koin.`, "system");
     }
     updateUI();
@@ -489,8 +506,7 @@ function updateUI() {
     npcs.forEach(n => {
         let btn = document.createElement("div");
         btn.className = "act-btn";
-        const label = n.id.startsWith("gen_") && !n.isKnown ? `❓ Seseorang (${n.role})` : `💬 ${n.name}`;
-        btn.innerHTML = `${label} <br><small>${n.currentLoc} | ${n.mood}</small>`;
+        btn.innerHTML = `💬 ${n.name} <br><small>${n.role}</small>`;
         btn.onclick = () => startDialogue(n);
         list.appendChild(btn);
     });
@@ -499,9 +515,7 @@ function updateUI() {
 function setBar(id, cur, max) {
     const pct = Math.min(100, Math.max(0, (cur/max)*100));
     const bar = document.getElementById(`${id}-bar`);
-    const txt = document.getElementById(`${id}-txt`);
     if(bar) bar.style.width = `${pct}%`;
-    if(txt) txt.innerText = `${Math.floor(cur)}/${max}`;
 }
 
 function gainExp(amt) {
@@ -524,30 +538,15 @@ function passTime(mins, log=true) {
 
 async function startDialogue(npc) {
     if(currentTarget) return;
-
-    if (npc.id.startsWith("gen_") && !npc.isKnown) {
-        const choice = confirm(`Kamu belum mengenal ${npc.name}. Ingin mencoba berkenalan?`);
-        if (!choice) { addLog(`Kamu memutuskan untuk tidak menyapa orang asing itu.`, "narrator"); return; }
-        npc.isKnown = true;
-        npc.affinity += 5;
-        addLog(`Kamu menyapa orang asing itu. Ternyata namanya adalah ${npc.name}.`, "narrator");
-    }
+    if (npc.id.startsWith("gen_") && !npc.isKnown) { npc.isKnown = true; addLog(`Berkenalan dengan ${npc.name}.`, "narrator"); }
 
     currentTarget = npc;
     document.getElementById("npc-indicator").style.display="block";
     document.getElementById("target-name").innerText = `${npc.name} (${npc.currentLoc})`;
     
-    let tradeMsg = "";
-    if (npc.inventory && npc.inventory.length > 0) {
-        tradeMsg = "<br><strong>Barang:</strong><br>" + npc.inventory.map(i => {
-            const d = getItem(i.id);
-            return `- ${d.name} (${i.qty}) - ${Math.floor(d.val * WORLD.economyMod)}g`;
-        }).join("<br>");
-        addLog(`Ketik "beli [nama]" atau "jual [nama]".`, "system");
-    }
-
-    const res = await callGemini(`Sapa Edrin. Role:${npc.name}. Mood:${npc.mood}.`, "Halo.");
-    addLog(res + tradeMsg, "npc", npc.name);
+    const priceList = generatePriceList(npc, WORLD.economyMod); // Dari shops.js
+    const res = await callGemini(`Sapa Edrin. Mood: ${npc.mood}`, "Halo.");
+    addLog(res + priceList, "npc", npc.name);
 }
 
 function endDialogue() {
@@ -565,21 +564,9 @@ async function callGemini(sys, user) {
     } catch (e) { return "..."; }
 }
 
-async function summarizeMemory(npc, inp, res) {
-    try {
-        const mem = await callGemini("Rangkum 1 fakta penting.", `Pemain:${inp}, NPC:${res}`);
-        npc.memories.push(mem);
-        if(npc.memories.length > 5) npc.memories.shift();
-    } catch(e){}
-}
-
 function actionLook() {
     if (PLAYER.location !== "Valeryn" && Math.random() < 0.3) {
-        const predators = ["Serigala Greywood", "Elang Batu", "Beruang Coklat"];
-        const prey = ["Tikus Lumut", "Kelinci", "Rusa"];
-        const p = predators[Math.floor(Math.random() * predators.length)];
-        const pr = prey[Math.floor(Math.random() * prey.length)];
-        addLog(`👁️ <i>Di kejauhan, kamu melihat seekor ${p} sedang memangsa bangkai ${pr}.</i>`, "narrator");
+        addLog(`👁️ Kamu mengamati sekitar di ${PLAYER.location}.`, "narrator");
     } else {
         addLog(`Lokasi: ${PLAYER.location} | Cuaca: ${WORLD.weather}`, "system");
     }
@@ -588,15 +575,14 @@ function actionLook() {
 function actionRest() { 
     passTime(480); 
     PLAYER.status.sleep = 0; 
-    PLAYER.status.maxStam = INITIAL_STATE.player.status.maxStam;
-    PLAYER.status.hp = Math.min(PLAYER.status.maxHp, PLAYER.status.hp + 40);
+    PLAYER.status.hp = PLAYER.status.maxHp;
     PLAYER.status.stamina = PLAYER.status.maxStam;
     if (PLAYER.location === "Valeryn") PLAYER.status.hygiene = 100; 
-    addLog("Istirahat selesai. Tubuhmu terasa segar dan bersih.", "system"); 
+    addLog("Istirahat selesai.", "system"); 
     updateUI(); 
 }
 
-function actionInventory() { addLog(`Tas: ${PLAYER.inventory.map(i=>i.name + " (x"+(i.qty||1)+")").join(", ") || "Kosong"}`, "system"); }
+function actionInventory() { addLog(`Tas: ${PLAYER.inventory.map(i=>i.name + " (x"+i.qty+")").join(", ") || "Kosong"}`, "system"); }
 function actionStatus() { addLog(`Gold: ${PLAYER.status.gold} | Tidur: ${Math.floor(PLAYER.status.sleep)}j | Kebersihan: ${Math.floor(PLAYER.status.hygiene)}%`, "system"); }
 
 document.getElementById("input-txt").addEventListener("keypress", (e) => { if (e.key === "Enter") handleInput(); });

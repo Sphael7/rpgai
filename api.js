@@ -1,7 +1,7 @@
-// Simpan API Key dan Konfigurasi di sini
+// api.js
 const CONFIG = {
-    API_KEY: "AIzaSyBpzkr1szBO2cgPG8kiQIUCc8WsPBU6EdA",
-    MODEL: "gemini-3-flash-preview",
+    API_KEY: "AIzaSyBOhwk2EKNM2FE4Da_-t-IspzJZ3TQjTck", // Pastikan Key ini aktif di AI Studio
+    MODEL: "gemini-3-flash-preview", 
     get URL() {
         return `https://generativelanguage.googleapis.com/v1beta/models/${this.MODEL}:generateContent?key=${this.API_KEY}`;
     }
