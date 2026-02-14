@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avarath: Edrin's Chronicle</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="game-container">
+    
+    <div class="narrative-section">
+        <div id="chat-history">
+            </div>
+        
+        <div class="input-area">
+            <div id="npc-indicator" style="display:none; margin-bottom:10px; padding:5px; border-bottom:1px solid #333; color:var(--accent); font-size:0.9em;">
+                <span>🗣️ Bicara dengan: <strong id="target-name">...</strong></span>
+                <span style="float:right; cursor:pointer; color:#b94a48; font-weight:bold;" onclick="endDialogue()">[AKHIRI]</span>
+            </div>
+            
+            <div class="input-wrapper">
+                <input type="text" id="input-txt" placeholder="Ketik tindakan atau ucapan..." autocomplete="off">
+                <button class="send-btn" onclick="handleInput()">KIRIM</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        
+        <div class="section-title">KARAKTER</div>
+        <div style="display:flex; gap:15px; align-items:center; margin-bottom:20px;">
+            <div style="background:#151515; border:1px solid var(--accent); padding:5px 15px; text-align:center; border-radius:4px;">
+                <div style="font-size:0.7em; color:#888;">LVL</div>
+                <div id="p-level" style="font-size:1.8em; color:var(--accent); font-weight:bold;">1</div>
+            </div>
+            <div>
+                <div id="p-name" style="font-weight:bold; font-size:1.2em; color:white;">Loading...</div>
+                <div id="p-class" style="color:#8be9fd; font-size:0.9em;">Loading...</div>
+            </div>
+        </div>
+
+        <div class="bar-wrapper">
+            <div class="bar-label"><span>HP</span> <span id="hp-txt">100/100</span></div>
+            <div class="bar-bg"><div class="bar-fill" id="hp-bar" style="background:#b94a48; width:100%"></div></div>
+        </div>
+        <div class="bar-wrapper">
+            <div class="bar-label"><span>Stamina</span> <span id="stam-txt">80/100</span></div>
+            <div class="bar-bg"><div class="bar-fill" id="stam-bar" style="background:#d4af37; width:80%"></div></div>
+        </div>
+        <div class="bar-wrapper">
+            <div class="bar-label"><span>EXP</span> <span id="exp-txt">0/100</span></div>
+            <div class="bar-bg" style="border:1px solid #333;"><div class="bar-fill" id="exp-bar" style="background:#bd93f9; width:0%"></div></div>
+        </div>
+
+        <div class="section-title">STATS</div>
+        <div class="stat-box">
+            <div>STR: <span id="val-str" class="stat-val">0</span></div>
+            <div>AGI: <span id="val-agi" class="stat-val">0</span></div>
+            <div>INT: <span id="val-int" class="stat-val">0</span></div>
+            <div>PER: <span id="val-per" class="stat-val">0</span></div>
+        </div>
+
+        <div class="section-title">ORANG SEKITAR</div>
+        <div id="npc-list-ui" class="action-grid"></div>
+
+        <div class="section-title">AKSI</div>
+        <div class="action-grid">
+            <div class="act-btn" onclick="actionTravel()" style="border:1px solid #8be9fd; color:#8be9fd;">🗺️ Travel</div>
+            
+            <div class="act-btn" onclick="actionHunt()" style="border:1px solid #ff5555; color:#ff5555;">⚔️ Berburu</div>
+            
+            <div class="act-btn" onclick="actionRest()">💤 Istirahat</div>
+            <div class="act-btn" onclick="actionInventory()">🎒 Tas</div>
+            <div class="act-btn" onclick="actionLook()">👁️ Observasi</div>
+            <div class="act-btn" onclick="actionStatus()">👤 Status</div>
+        </div>
+
+        <div style="margin-top:auto; padding-top:20px; text-align:center; color:#555; font-size:0.8em; border-top:1px solid #222;">
+            <span id="world-clock">Hari 1 - 08:00</span>
+            <br><br>
+            
+            <div style="display:flex; justify-content:center; gap:10px;">
+                <button onclick="loadGame('auto')" style="background:none; border:1px solid #333; color:#888; cursor:pointer; padding:5px 10px; border-radius:4px;">Load Auto-Save</button>
+                <button onclick="clearSave()" style="background:none; border:none; color:#b94a48; cursor:pointer; text-decoration:underline;">Hard Reset</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="api.js"></script>
+<script src="lore.js"></script>
+<script src="items.js"></script>
+<script src="monsters.js"></script>
+<script src="notif.js"></script> <script src="game.js"></script>
+
+</body>
+</html>

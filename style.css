@@ -1,0 +1,174 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Cinzel:wght@500;700&display=swap');
+
+:root {
+    --bg-dark: #0a0a0a;
+    --panel-bg: #111;
+    --border-col: #333;
+    --accent: #d4af37; /* Emas Pudar */
+    --text-main: #e0e0e0;
+}
+
+* { box-sizing: border-box; }
+
+/* --- 1. SCROLLBAR CUSTOM (WAJIB ADA) --- */
+/* Scrollbar Batang */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+/* Track (Jalur) */
+::-webkit-scrollbar-track {
+    background: #0f0f0f; 
+}
+
+/* Handle (Tombol Geser) */
+::-webkit-scrollbar-thumb {
+    background: #333; 
+    border-radius: 4px;
+    border: 1px solid #1a1a1a;
+}
+
+/* Handle saat di-hover */
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent); 
+}
+
+/* --- 2. LAYOUT UTAMA (KUNCI AGAR TIDAK KETUTUPAN) --- */
+body {
+    background: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    padding: 0;
+    height: 100vh; /* Memaksa tinggi tubuh = tinggi layar */
+    width: 100vw;
+    overflow: hidden; /* Mencegah scroll pada body utama */
+    display: flex;
+    justify-content: center;
+}
+
+.game-container {
+    display: flex; /* Ganti grid jadi flex biar lebih gampang diatur height-nya */
+    width: 100%;
+    max-width: 1600px;
+    height: 100%; /* Full Height */
+    border-left: 1px solid var(--border-col);
+    border-right: 1px solid var(--border-col);
+}
+
+/* --- 3. PANEL KIRI (CHAT) --- */
+.narrative-section {
+    flex: 7; /* Lebar 70% */
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* PENTING */
+    background: radial-gradient(circle at center, #141414 0%, #050505 100%);
+    position: relative;
+}
+
+#chat-history {
+    flex: 1; /* Mengisi ruang kosong tersisa */
+    overflow-y: auto; /* Aktifkan Scroll Vertikal */
+    padding: 20px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    scroll-behavior: smooth;
+    min-height: 0; /* FIX FLEXBOX SCROLL BUG */
+}
+
+/* Area Input (Footer) */
+.input-area {
+    flex-shrink: 0; /* Jangan mengecil */
+    padding: 20px;
+    background: var(--panel-bg);
+    border-top: 1px solid var(--border-col);
+    z-index: 10;
+}
+
+.input-wrapper {
+    display: flex;
+    background: #0a0a0a;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 5px;
+}
+
+input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: white;
+    padding: 12px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    font-size: 1rem;
+}
+
+button.send-btn {
+    background: #222;
+    color: var(--accent);
+    border: 1px solid #333;
+    padding: 0 25px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+}
+button.send-btn:hover { background: var(--accent); color: black; }
+
+/* --- 4. PANEL KANAN (SIDEBAR) --- */
+.sidebar {
+    flex: 3; /* Lebar 30% */
+    background: #0e0e0e;
+    border-left: 1px solid var(--border-col);
+    padding: 20px;
+    overflow-y: auto; /* Sidebar scroll terpisah */
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- 5. KOMPONEN UI --- */
+.section-title {
+    font-family: 'Cinzel', serif;
+    color: var(--accent);
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+}
+
+.stat-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; color: #aaa; font-size: 0.9em; }
+.stat-val { color: white; font-weight: bold; }
+
+.bar-wrapper { margin-bottom: 8px; }
+.bar-label { display: flex; justify-content: space-between; margin-bottom: 2px; color: #666; font-size: 0.75rem; }
+.bar-bg { background: #222; height: 6px; border-radius: 2px; overflow: hidden; }
+.bar-fill { height: 100%; transition: width 0.5s ease; }
+
+.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.act-btn {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #ccc;
+    padding: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: 0.2s;
+    font-size: 0.85rem;
+    user-select: none;
+}
+.act-btn:hover { border-color: var(--accent); color: white; background: #222; }
+
+/* --- 6. CHAT BUBBLES --- */
+.msg { max-width: 90%; line-height: 1.6; font-size: 0.95rem; animation: fadeIn 0.3s ease; position: relative; }
+.msg.narrator { color: #ccc; font-style: italic; border-left: 2px solid #444; padding-left: 15px; margin: 10px 0; }
+.msg.npc { align-self: flex-start; color: #fff; background: rgba(255, 255, 255, 0.05); padding: 10px 15px; border-radius: 0 10px 10px 10px; border-left: 3px solid var(--accent); }
+.msg.npc strong { color: var(--accent); display: block; font-family: 'Cinzel', serif; font-size: 0.9em; margin-bottom: 5px; }
+.msg.player { align-self: flex-end; color: #a0cfff; text-align: right; background: rgba(30, 40, 50, 0.4); padding: 10px 15px; border-radius: 10px 0 10px 10px; border-right: 3px solid #a0cfff; }
+.msg.system { align-self: center; font-size: 0.8rem; color: #666; border-top: 1px solid #222; padding-top: 5px; margin: 15px 0; width: 100%; text-align: center; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
