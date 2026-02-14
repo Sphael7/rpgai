@@ -1,6 +1,14 @@
-// --- TAMBAHAN 150 ITEM BARU ---
-Object.assign(ITEM_DB, {
-    // --- WEAPONS (wpn_008 - wpn_050) ---
+const ITEM_DB = {
+    // ==========================================
+    // --- WEAPONS (wpn_001 - wpn_050) ---
+    // ==========================================
+    "wpn_001": { name: "Pedang Besi Karat", type: "weapon", val: 15, desc: "Bilah tua yang tumpul.", atk: 5, dur: 50 },
+    "wpn_002": { name: "Pisau Berburu", type: "weapon", val: 25, desc: "Standar pemburu Valeryn.", atk: 8, dur: 80 },
+    "wpn_003": { name: "Busur Kayu Yew", type: "weapon", val: 40, desc: "Lentur dan akurat.", atk: 12, range: true },
+    "wpn_004": { name: "Kapak Penebang", type: "weapon", val: 30, desc: "Berat, bisa membelah helm.", atk: 15, spd: -2 },
+    "wpn_005": { name: "Tombak Milisi", type: "weapon", val: 35, desc: "Jangkauan serang lebih jauh.", atk: 10 },
+    "wpn_006": { name: "Pedang Panjang Baja", type: "weapon", val: 120, desc: "Tempaan pandai besi Valeryn.", atk: 25 },
+    "wpn_007": { name: "Dagger Racun", type: "weapon", val: 85, desc: "Bilahnya diolesi getah beracun.", atk: 7, effect: "poison" },
     "wpn_008": { name: "Gada Kayu Berpaku", type: "weapon", val: 30, desc: "Kasar tapi efektif menghancurkan tulang.", atk: 12 },
     "wpn_009": { name: "Rapier Perak", type: "weapon", val: 150, desc: "Sangat ringan, favorit bangsawan Aerthale.", atk: 18, agi: 5 },
     "wpn_010": { name: "Claymore Karat", type: "weapon", val: 90, desc: "Pedang dua tangan yang sangat berat.", atk: 35, spd: -4 },
@@ -45,7 +53,14 @@ Object.assign(ITEM_DB, {
     "wpn_049": { name: "Dagger Kristal Merah", type: "weapon", val: 350, desc: "Menyerap darah musuh.", atk: 18, lifesteal: 5 },
     "wpn_050": { name: "Palu Gempa", type: "weapon", val: 1800, desc: "Getarannya bisa meruntuhkan tembok.", atk: 70, spd: -10 },
 
-    // --- ARMOR (arm_006 - arm_050) ---
+    // ==========================================
+    // --- ARMOR (arm_001 - arm_050) ---
+    // ==========================================
+    "arm_001": { name: "Tunik Kain Lusuh", type: "armor", slot: "body", val: 5, desc: "Lebih baik dari telanjang.", def: 1 },
+    "arm_002": { name: "Rompi Kulit Serigala", type: "armor", slot: "body", val: 45, desc: "Hangat dan cukup keras.", def: 5 },
+    "arm_003": { name: "Pelindung Bahu Besi", type: "armor", slot: "shoulder", val: 60, desc: "Standar prajurit.", def: 8 },
+    "arm_004": { name: "Boots Pemburu", type: "armor", slot: "legs", val: 30, desc: "Kulit tebal untuk hutan.", def: 3, agi: 2 },
+    "arm_005": { name: "Hood Penyamar", type: "armor", slot: "head", val: 25, desc: "Membantu bersembunyi.", def: 1, stealth: 5 },
     "arm_006": { name: "Helm Prajurit Valeryn", type: "armor", slot: "head", val: 80, desc: "Baja padat pelindung wajah.", def: 10 },
     "arm_007": { name: "Jubah Mage Magang", type: "armor", slot: "body", val: 70, desc: "Kain biru dengan serat mana.", def: 3, mag: 10 },
     "arm_008": { name: "Celana Kulit Beruang", type: "armor", slot: "legs", val: 55, desc: "Sangat tebal dan tahan dingin.", def: 6 },
@@ -92,7 +107,14 @@ Object.assign(ITEM_DB, {
     "arm_049": { name: "Bracer Emas", type: "armor", slot: "hands", val: 600, desc: "Simbol kekayaan Marrowport.", def: 8, gold_find: 20 },
     "arm_050": { name: "Helm Ksatria Tanpa Kepala", type: "armor", slot: "head", val: 2200, desc: "Mengerikan dan berhantu.", def: 20, fear_aura: 10 },
 
-    // --- CONSUMABLES (con_006 - con_050) ---
+    // ==========================================
+    // --- CONSUMABLES & FOOD (con_001 - con_050) ---
+    // ==========================================
+    "con_001": { name: "Roti Kering", type: "food", val: 2, desc: "Keras tapi mengenyangkan.", hunger: 10 },
+    "con_002": { name: "Daging Asap", type: "food", val: 15, desc: "Enak dan bergizi.", hunger: 35, hp: 5 },
+    "con_003": { name: "Ramuan Herbal Kecil", type: "potion", val: 20, desc: "Daun obat tumbuk.", hp: 20 },
+    "con_004": { name: "Ramuan Darah Troll", type: "potion", val: 150, desc: "Regenerasi instan, rasa busuk.", hp: 100 },
+    "con_005": { name: "Pembalut Luka", type: "med", val: 10, desc: "Kain bersih penghenti darah.", cure: "bleeding" },
     "con_006": { name: "Apel Segar", type: "food", val: 3, desc: "Manis dan renyah.", hunger: 15 },
     "con_007": { name: "Sup Jamur Hutan", type: "food", val: 12, desc: "Hangat, tapi hati-hati jamur beracun.", hunger: 25, mp: 5 },
     "con_008": { name: "Ramuan Mana Kecil", type: "potion", val: 30, desc: "Cairan biru bercahaya.", mp: 20 },
@@ -139,7 +161,14 @@ Object.assign(ITEM_DB, {
     "con_049": { name: "Scroll of Lightning Bolt", type: "scroll", val: 350, desc: "Sambaran petir tunggal." },
     "con_050": { name: "Pesta dalam Kotak", type: "food", val: 1200, desc: "Makanan lengkap untuk satu grup.", hunger: 100, team_heal: 50 },
 
-    // --- MATERIALS (mat_006 - mat_040) ---
+    // ==========================================
+    // --- MATERIALS (mat_001 - mat_040) ---
+    // ==========================================
+    "mat_001": { name: "Kulit Serigala", type: "material", val: 10, desc: "Bahan kerajinan dasar." },
+    "mat_002": { name: "Taring Goblin", type: "material", val: 5, desc: "Sering dijadikan kalung." },
+    "mat_003": { name: "Biji Besi Mentah", type: "material", val: 8, desc: "Berat dan kotor." },
+    "mat_004": { name: "Sisik Naga Kecil", type: "material", val: 500, desc: "Sangat langka dan keras." },
+    "mat_005": { name: "Kayu Elder", type: "material", val: 50, desc: "Kayu sihir dari hutan dalam." },
     "mat_006": { name: "Batu Bara", type: "material", val: 5, desc: "Bahan bakar tungku." },
     "mat_007": { name: "Benang Sutra", type: "material", val: 25, desc: "Bahan pakaian halus." },
     "mat_008": { name: "Esens Mana", type: "material", val: 150, desc: "Inti sihir yang terkonsentrasi." },
@@ -176,7 +205,11 @@ Object.assign(ITEM_DB, {
     "mat_039": { name: "Inti Golem", type: "material", val: 900, desc: "Batu yang memberikan kehidupan." },
     "mat_040": { name: "Pasir Waktu", type: "material", val: 5000, desc: "Bahan yang sangat langka dan berbahaya." },
 
-    // --- KEY ITEMS (key_003 - key_017) ---
+    // ==========================================
+    // --- KEY ITEMS (key_001 - key_017) ---
+    // ==========================================
+    "key_001": { name: "Lencana Pemburu", type: "key", val: 0, desc: "Bukti keanggotaan guild." },
+    "key_002": { name: "Peta Avarath Kuno", type: "key", val: 200, desc: "Menunjukkan jalur rahasia." },
     "key_003": { name: "Kunci Penjara Karat", type: "key", val: 0, desc: "Membuka sel di benteng lama." },
     "key_004": { name: "Surat Izin Dagang", type: "key", val: 100, desc: "Izin resmi masuk Marrowport." },
     "key_005": { name: "Medali Keberanian", type: "key", val: 0, desc: "Diberikan oleh Raja Avarath." },
@@ -192,4 +225,4 @@ Object.assign(ITEM_DB, {
     "key_015": { name: "Botol Kosong Ajaib", type: "key", val: 0, desc: "Bisa menampung napas naga." },
     "key_016": { name: "Resep Masakan Legendaris", type: "key", val: 0, desc: "Cara membuat hidangan dewa." },
     "key_017": { name: "Tengkorak Raja Terkutuk", type: "key", val: 0, desc: "Pintu masuk ke makam bawah tanah." }
-});
+};

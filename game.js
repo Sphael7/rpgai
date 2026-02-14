@@ -536,15 +536,21 @@ function passTime(mins, log=true) {
     if(WORLD.hour >= 24) { WORLD.hour = 0; WORLD.day++; }
 }
 
+// Fungsi pembantu untuk mendapatkan data item dari database
+function getItem(id) {
+    return ITEM_DB[id] || null;
+}
+
 async function startDialogue(npc) {
-    if(currentTarget) return;
+    // Menghapus pengecekan 'if(currentTarget) return' agar NPC bisa diklik berulang kali
     if (npc.id.startsWith("gen_") && !npc.isKnown) { npc.isKnown = true; addLog(`Berkenalan dengan ${npc.name}.`, "narrator"); }
 
     currentTarget = npc;
     document.getElementById("npc-indicator").style.display="block";
     document.getElementById("target-name").innerText = `${npc.name} (${npc.currentLoc})`;
     
-    const priceList = generatePriceList(npc, WORLD.economyMod); // Dari shops.js
+    // Memastikan daftar harga dari shops.js dipanggil setiap kali dialog dimulai
+    const priceList = generatePriceList(npc, WORLD.economyMod); 
     const res = await callGemini(`Sapa Edrin. Mood: ${npc.mood}`, "Halo.");
     addLog(res + priceList, "npc", npc.name);
 }
