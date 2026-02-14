@@ -1,16 +1,59 @@
 // ============================================================================
-// GAME ENGINE - AVARATH RPG (Living World & Reputation Update)
+// GAME ENGINE - AVARATH RPG (Full Revised: Survival, Trading & AI NPCs Generation)
 // ============================================================================
 
 const KEY_MAIN = "avarath_save_main_v6"; 
 const KEY_AUTO = "avarath_save_auto_v6";
 
+// Poin 4: Master Template untuk ribuan NPC (Lazy Loading)
+const NPC_TEMPLATES = {
+    "Valeryn": [
+        { 
+            id: "npc_garrick", 
+            name: "Garrick", 
+            role: "Mentor", 
+            desc: "Tua, satu mata.", 
+            relations: ["npc_elara"], 
+            schedule: { 
+                work: { s: 8, e: 17, l: "Bengkel Pandai Besi" }, 
+                rest: { s: 18, e: 23, l: "Penginapan (Inn)" } 
+            },
+            inventory: [ 
+                { id: "wpn_001", qty: 2 },
+                { id: "mat_003", qty: 5 }
+            ]
+        },
+        { 
+            id: "npc_elara", 
+            name: "Elara", 
+            role: "Pelayan", 
+            desc: "Ramah.", 
+            relations: ["npc_garrick"],
+            schedule: { 
+                work: { s: 7, e: 22, l: "Penginapan (Inn)" }, 
+                rest: { s: 23, e: 6, l: "Rumah Pribadi" } 
+            },
+            inventory: [ 
+                { id: "con_001", qty: 10 },
+                { id: "con_002", qty: 3 }
+            ]
+        }
+    ],
+    "greywood": [], 
+    "stonefall": [],
+    "river_karth": [],
+    "ashplain": []
+};
+
 const INITIAL_STATE = {
     player: {
         identity: { name: "Edrin Hale", role: "Hunter", origin: "Valeryn" },
         stats: { level: 1, exp: 0, maxExp: 100, str: 12, agi: 14, int: 10, per: 15 },
-        status: { hp: 100, maxHp: 100, stamina: 80, maxStam: 100, hunger: 20, gold: 45 },
-        reputation: { valeryn: 10, global: 0 }, // Tambahan Reputasi
+        status: { 
+            hp: 100, maxHp: 100, stamina: 80, maxStam: 100, hunger: 20, gold: 45,
+            sleep: 0, hygiene: 100 
+        },
+        reputation: { valeryn: 10, global: 0 },
         location: "Valeryn",
         inventory: [
             { id: "wpn_003", name: "Busur Kayu Yew", qty: 1 },
@@ -21,22 +64,16 @@ const INITIAL_STATE = {
     world: {
         day: 1, hour: 8, minute: 0,
         weather: "Cerah",
-        economyMod: 1.0 // Tambahan Modifikator Ekonomi
+        economyMod: 1.0 
     },
-    npcs: {
-        "Valeryn": [
-            { id: "npc_garrick", name: "Garrick", role: "Mentor", desc: "Tua, satu mata.", affinity: 50, memories: [], chatCount: 0 },
-            { id: "npc_elara", name: "Elara", role: "Pelayan", desc: "Ramah.", affinity: 30, memories: [], chatCount: 0 }
-        ],
-        "Wilderness": []
-    },
+    npcs: {}, 
     logs: [] 
 };
 
 let PLAYER, WORLD, NPC_DB, CHAT_LOGS;
 let currentTarget = null;
 let gameInterval; 
-let huntClue = null; // Menyimpan monster yang sedang dilacak
+let huntClue = null;
 
 window.onload = function() {
     loadGame("main");
@@ -57,24 +94,14 @@ function loadGame(source = "main") {
             PLAYER.reputation = { ...INITIAL_STATE.player.reputation, ...savedData.player.reputation };
             PLAYER.inventory = savedData.player.inventory || INITIAL_STATE.player.inventory;
             WORLD = { ...INITIAL_STATE.world, ...savedData.world };
-            NPC_DB = JSON.parse(JSON.stringify(INITIAL_STATE.npcs)); 
-            for (const city in savedData.npcs) {
-                if (NPC_DB[city]) {
-                    savedData.npcs[city].forEach(savedNPC => {
-                        const targetNPC = NPC_DB[city].find(n => n.id === savedNPC.id);
-                        if (targetNPC) {
-                            targetNPC.memories = savedNPC.memories || [];
-                            targetNPC.chatCount = savedNPC.chatCount || 0;
-                            targetNPC.affinity = savedNPC.affinity || (INITIAL_STATE.npcs[city].find(i => i.id === savedNPC.id).affinity);
-                        }
-                    });
-                }
-            }
+            
+            NPC_DB = savedData.npcs || {};
+            
             CHAT_LOGS = savedData.logs || [];
             const logArea = document.getElementById("chat-history");
             if (logArea) {
                 logArea.innerHTML = "";
-                CHAT_LOGS.forEach(log => renderLog(log.html, log.type));
+                CHAT_LOGS.forEach(log => renderLog(log.html, log.type, log.name));
             }
             addLog(`<i>Data dimuat: ${source.toUpperCase()}.</i>`, "system");
         } catch (e) { hardReset(); }
@@ -82,19 +109,84 @@ function loadGame(source = "main") {
         hardReset();
         addLog("Selamat datang di Avarath.", "system");
     }
+    updateNPCLiveState();
     updateUI();
 }
 
 function hardReset() {
     PLAYER = JSON.parse(JSON.stringify(INITIAL_STATE.player));
     WORLD = JSON.parse(JSON.stringify(INITIAL_STATE.world));
-    NPC_DB = JSON.parse(JSON.stringify(INITIAL_STATE.npcs));
+    NPC_DB = {}; 
     CHAT_LOGS = [];
+    saveGame("main");
 }
 
 function saveGame(source = "main") {
     const data = { player: PLAYER, world: WORLD, npcs: NPC_DB, logs: CHAT_LOGS };
     localStorage.setItem(source === "auto" ? KEY_AUTO : KEY_MAIN, JSON.stringify(data));
+}
+
+// --- SYSTEM: AI NPC GENERATION (NEW) ---
+async function generateNewNPC() {
+    if (PLAYER.status.stamina < 5) { addLog("Kamu terlalu lelah untuk mencari orang baru.", "system"); return; }
+    
+    addLog("<i>Mencoba berinteraksi dengan orang asing di sekitar...</i>", "system");
+    PLAYER.status.stamina -= 5;
+
+    const prompt = `Buat 1 NPC baru untuk dunia RPG medieval Avarath di lokasi ${PLAYER.location}. 
+    Berikan format JSON murni tanpa markdown: 
+    {"name": "nama", "role": "pekerjaan", "desc": "deskripsi singkat", "schedule": {"work": {"s": 8, "e": 16, "l": "tempat kerja"}, "rest": {"s": 17, "e": 7, "l": "tempat istirahat"}}}`;
+
+    try {
+        const response = await callGemini(prompt, "Hasilkan data NPC.");
+        const cleanJson = response.replace(/```json|```/gi, "").trim();
+        const newNPCData = JSON.parse(cleanJson);
+        
+        newNPCData.id = "gen_" + Date.now();
+        newNPCData.affinity = 0;
+        newNPCData.chatCount = 0;
+        newNPCData.memories = [];
+        newNPCData.isKnown = false; 
+        newNPCData.inventory = [];
+
+        if (!NPC_DB[PLAYER.location]) NPC_DB[PLAYER.location] = [];
+        NPC_DB[PLAYER.location].push(newNPCData);
+        
+        addLog(`Kamu melihat seseorang yang terlihat seperti <strong>${newNPCData.role}</strong>.`, "narrator");
+        updateNPCLiveState();
+        updateUI();
+    } catch (e) {
+        addLog("Gagal menemukan orang baru saat ini.", "system");
+    }
+}
+
+// --- SYSTEM: AUTO UPDATE NPC ---
+function updateNPCLiveState() {
+    const loc = PLAYER.location;
+    
+    if (!NPC_DB[loc]) {
+        NPC_DB[loc] = JSON.parse(JSON.stringify(NPC_TEMPLATES[loc] || []));
+    }
+
+    NPC_DB[loc].forEach(npc => {
+        if (npc.schedule) {
+            const isWork = WORLD.hour >= npc.schedule.work.s && WORLD.hour < npc.schedule.work.e;
+            npc.currentLoc = isWork ? npc.schedule.work.l : npc.schedule.rest.l;
+        } else {
+            npc.currentLoc = "Sekitar " + loc;
+        }
+
+        if (PLAYER.status.hygiene < 30) npc.mood = "Risih";
+        else if (PLAYER.status.hp < 40) npc.mood = "Cemas"; 
+        else if (WORLD.weather === "Badai") npc.mood = "Waspada";
+        else if (WORLD.hour > 21 || WORLD.hour < 6) npc.mood = "Lelah";
+        else npc.mood = "Normal";
+
+        if (!npc.affinity) npc.affinity = 10;
+        if (!npc.memories) npc.memories = [];
+        if (!npc.chatCount) npc.chatCount = 0;
+        if (!npc.inventory) npc.inventory = [];
+    });
 }
 
 // --- LOGGING ---
@@ -104,7 +196,6 @@ function addLog(html, type, name = "") {
     CHAT_LOGS.push(logItem);
     if (CHAT_LOGS.length > 50) CHAT_LOGS.shift();
     renderLog(html, type, name);
-    saveGame("main");
 }
 
 function renderLog(html, type, name = "") {
@@ -112,7 +203,7 @@ function renderLog(html, type, name = "") {
     if (!logArea) return;
     const div = document.createElement("div");
     div.className = `msg ${type}`;
-    div.innerHTML = type === "npc" ? `<strong>${name}</strong>${html}` : html;
+    div.innerHTML = type === "npc" ? `<strong>${name}:</strong> ${html}` : html;
     logArea.appendChild(div);
     setTimeout(() => { logArea.scrollTop = logArea.scrollHeight; }, 50);
 }
@@ -124,7 +215,16 @@ function startGameLoop() {
         let oldHour = WORLD.hour;
         passTime(8, false); 
         
-        // Hunger & Weather Impact
+        updateNPCLiveState();
+
+        PLAYER.status.sleep += 0.5;
+        PLAYER.status.hygiene -= 0.3;
+        
+        if (PLAYER.status.sleep >= 24) {
+            PLAYER.status.maxStam = Math.max(20, PLAYER.status.maxStam - 5);
+            addLog("<i>Matamu terasa berat, fokusmu mulai kabur.</i>", "system");
+        }
+
         let hungerRate = (WORLD.weather === "Hujan" || WORLD.weather === "Badai") ? 1.0 : 0.5;
         PLAYER.status.hunger += hungerRate;
         if (PLAYER.status.hunger < 100) PLAYER.status.stamina = Math.min(PLAYER.status.maxStam, PLAYER.status.stamina + 1);
@@ -133,9 +233,8 @@ function startGameLoop() {
         triggerRandomEvent();
 
         if ((oldHour === 11 && WORLD.hour === 12) || (oldHour === 23 && WORLD.hour === 0)) {
-            addLog("💾 <strong>AUTO-SAVE</strong>", "system");
             saveGame("auto");
-            updateDynamicEconomy(); // Update harga pasar tiap 12 jam
+            updateDynamicEconomy();
         }
         saveGame("main"); 
         updateUI();
@@ -144,7 +243,18 @@ function startGameLoop() {
 
 function updateDynamicEconomy() {
     WORLD.economyMod = 0.8 + (Math.random() * 0.6); 
-    if (WORLD.economyMod > 1.3) addLog("📢 <strong>EKONOMI:</strong> Harga barang di pasar melonjak karena gangguan suplai.", "system");
+    
+    for (let loc in NPC_DB) {
+        NPC_DB[loc].forEach(npc => {
+            if (npc.inventory) {
+                npc.inventory.forEach(item => {
+                    if (Math.random() > 0.5) item.qty += Math.floor(Math.random() * 3);
+                });
+            }
+        });
+    }
+
+    if (WORLD.economyMod > 1.3) addLog("📢 <strong>EKONOMI:</strong> Harga pasar sedang melonjak.", "system");
 }
 
 function changeWeather() {
@@ -163,39 +273,34 @@ function triggerRandomEvent() {
     }
 }
 
-// --- ACTIONS: HUNTING (Dinamis & Taktis) ---
+// --- ACTIONS: HUNTING ---
 async function actionHunt() {
-    if (PLAYER.location === "Valeryn") { addLog("🛡️ Aman di kota. Travel-lah ke wilayah luar.", "system"); return; }
-    if (huntClue) { addLog("🔍 Kamu sudah menemukan jejak. Ketik <strong>'lacak'</strong> untuk menyergap.", "system"); return; }
+    if (PLAYER.location === "Valeryn") { addLog("🛡️ Aman di kota. Pergilah ke Wilderness untuk berburu.", "system"); return; }
+    if (huntClue) { addLog("🔍 Gunakan perintah <strong>'lacak'</strong>.", "system"); return; }
     if (PLAYER.status.stamina < 15) { addLog("⚠️ Butuh 15 Stamina.", "system"); return; }
 
-    // Kalkulasi Durasi
-    let duration = 20 + Math.floor(Math.random() * 30);
-    if (WORLD.weather === "Hujan") duration += 15;
-    if (WORLD.hour < 6 || WORLD.hour > 18) duration += 20; // Malam
-
+    let duration = 30 + Math.floor(Math.random() * 30);
     PLAYER.status.stamina -= 15;
+    PLAYER.status.hygiene -= 5;
     passTime(duration, false);
     
-    // Day/Night Cycle Monster
     let isNight = WORLD.hour < 6 || WORLD.hour > 18;
     huntClue = spawnMonster(PLAYER.location, isNight);
 
     if (huntClue) {
-        addLog(`🐾 <strong>JEJAK DITEMUKAN:</strong> Kamu melihat tanda keberadaan <strong>${huntClue.name}</strong>.`, "narrator");
-        addLog(`Gunakan perintah <strong>'lacak'</strong> untuk memulai serangan.`, "system");
+        addLog(`🐾 <strong>JEJAK:</strong> Kamu melihat tanda keberadaan <strong>${huntClue.name}</strong>.`, "narrator");
     } else {
         addLog("Hutan terasa sunyi, tidak ada monster terlihat.", "narrator");
     }
     updateUI();
 }
 
+// --- INPUT & AI INTERACTION ---
 async function handleInput() {
     const input = document.getElementById("input-txt");
     const val = input.value.trim();
     if (!val) return;
 
-    // Perintah Khusus: Lacak
     if (val.toLowerCase() === "lacak" && huntClue) {
         executeHuntLogic(huntClue);
         huntClue = null;
@@ -203,81 +308,149 @@ async function handleInput() {
         return;
     }
 
+    if (currentTarget) {
+        if (val.toLowerCase().startsWith("beli ")) {
+            processTrade("buy", val.substring(5));
+            input.value = "";
+            return;
+        }
+        if (val.toLowerCase().startsWith("jual ")) {
+            processTrade("sell", val.substring(5));
+            input.value = "";
+            return;
+        }
+    }
+
     addLog(val, "player");
     input.value = "";
 
-    // Context AI yang sadar kondisi pemain
-    const aiAwareness = `Edrin Hale (HP:${PLAYER.status.hp}, Stamina:${PLAYER.status.stamina}, Lokasi:${PLAYER.location}, Cuaca:${WORLD.weather}). NPC Affinity: ${currentTarget ? currentTarget.affinity : 0}. Jika Edrin terluka parah, NPC bereaksi khawatir.`;
-    
     if (currentTarget) {
-        const context = `Role: ${currentTarget.name}. ${aiAwareness}. Jawab Edrin: "${val}"`;
+        const intimacy = currentTarget.chatCount > 10 ? "Sangat Akrab & Perhatian" : "Kenalan";
+        
+        const context = `
+            Role: ${currentTarget.name} (${currentTarget.role}). 
+            Mood: ${currentTarget.mood}. Kedekatan: ${intimacy}.
+            Higienitas Edrin: ${PLAYER.status.hygiene}/100.
+            Status Edrin: HP ${PLAYER.status.hp}, Tidur ${PLAYER.status.sleep} jam.
+            Tugas: Balas Edrin: "${val}". Jika higienitas rendah (<30), beri tahu dia dengan sopan. Jika dia lelah, sarankan istirahat.
+        `;
         const res = await callGemini(context, val);
         addLog(res, "npc", currentTarget.name);
+        
         currentTarget.chatCount++;
         if (currentTarget.chatCount % 3 === 0) summarizeMemory(currentTarget, val, res);
     } else {
-        const res = await callGemini(`Narator RPG. ${aiAwareness}. Aksi: ${val}`, val);
+        const res = await callGemini(`Narator RPG. Lokasi: ${PLAYER.location}. Aksi: ${val}`, val);
         addLog(res, "narrator");
     }
 }
 
-function executeHuntLogic(monster) {
-    addLog(`⚔️ Kamu mengendap-endap menggunakan <strong>Silent Step</strong> dan menyerang ${monster.name}!`, "narrator");
+function processTrade(type, itemName) {
+    const npc = currentTarget;
 
-    // Efek Cuaca pada Combat
-    let agilityMod = WORLD.weather === "Hujan" ? -3 : (WORLD.weather === "Kabut" ? 5 : 0);
+    if (type === "buy") {
+        const itemInStock = npc.inventory.find(i => {
+            const detail = getItem(i.id);
+            return detail && detail.name.toLowerCase() === itemName.toLowerCase();
+        });
+
+        if (!itemInStock || itemInStock.qty <= 0) {
+            addLog(`"${itemName}" tidak tersedia di stok.`, "npc", npc.name);
+            return;
+        }
+
+        const detail = getItem(itemInStock.id);
+        const price = Math.floor(detail.val * WORLD.economyMod);
+
+        if (PLAYER.status.gold >= price) {
+            PLAYER.status.gold -= price;
+            itemInStock.qty--;
+            
+            const pItem = PLAYER.inventory.find(pi => pi.id === itemInStock.id);
+            if (pItem) pItem.qty++;
+            else PLAYER.inventory.push({ id: itemInStock.id, name: detail.name, qty: 1 });
+            
+            addLog(`Kamu membeli ${detail.name} seharga ${price} koin.`, "system");
+        } else {
+            addLog("Emasmu tidak cukup.", "system");
+        }
+    } 
+    else if (type === "sell") {
+        const playerItemIndex = PLAYER.inventory.findIndex(pi => pi.name.toLowerCase() === itemName.toLowerCase());
+        
+        if (playerItemIndex === -1) {
+            addLog(`Kamu tidak memiliki "${itemName}" di tas.`, "system");
+            return;
+        }
+
+        const pItem = PLAYER.inventory[playerItemIndex];
+        const detail = getItem(pItem.id);
+        const sellPrice = Math.floor((detail.val * WORLD.economyMod) * 0.6);
+
+        PLAYER.status.gold += sellPrice;
+        pItem.qty--;
+        
+        if (pItem.qty <= 0) PLAYER.inventory.splice(playerItemIndex, 1);
+
+        const npcStock = npc.inventory.find(ni => ni.id === pItem.id);
+        if (npcStock) npcStock.qty++;
+        else npc.inventory.push({ id: pItem.id, qty: 1 });
+
+        addLog(`Kamu menjual ${detail.name} seharga ${sellPrice} koin.`, "system");
+    }
+    updateUI();
+}
+
+function executeHuntLogic(monster) {
+    addLog(`⚔️ Kamu menyerang ${monster.name}!`, "narrator");
+    
+    let agilityMod = WORLD.weather === "Hujan" ? -3 : 0;
     let pPower = PLAYER.stats.agi + agilityMod + (Math.random() * 10);
-    let mPower = monster.lvl * 2.5;
+    let mPower = monster.lvl * 2;
 
     if (pPower >= mPower) {
-        let hpLoss = (pPower - mPower < 5) ? Math.floor(monster.atk / 2) : 0;
+        let hpLoss = Math.floor(Math.random() * 5);
         PLAYER.status.hp -= hpLoss;
         gainExp(monster.exp);
-        addLog(`✅ <strong>SUKSES:</strong> ${monster.name} tumbang! ${hpLoss > 0 ? `Kamu tergores (-${hpLoss} HP).` : "Tanpa luka."}`, "system");
-        
-        // Part Breaking
-        if (monster.lvl > 5 && Math.random() > 0.7) {
-            addLog("💥 <strong>PART BREAK:</strong> Kamu menghancurkan bagian keras monster, material ekstra didapat!", "system");
-        }
+        addLog(`✅ Sukses! ${monster.name} dikalahkan.`, "system");
         
         if (monster.drops) {
             monster.drops.forEach(d => {
                 if(Math.random() <= d.chance) {
                     const itm = getItem(d.id);
                     if(itm) {
-                        PLAYER.inventory.push({id:d.id, name:itm.name, qty:1});
+                        const pItem = PLAYER.inventory.find(pi => pi.id === d.id);
+                        if (pItem) pItem.qty++;
+                        else PLAYER.inventory.push({id:d.id, name:itm.name, qty:1});
                         addLog(`Loot: <span style="color:gold">${itm.name}</span>`, "system");
                     }
                 }
             });
         }
     } else {
-        let hpLoss = Math.floor(monster.atk * (WORLD.weather === "Badai" ? 1.5 : 1.2));
+        let hpLoss = monster.atk;
         PLAYER.status.hp -= hpLoss;
-        addLog(`❌ <strong>GAGAL:</strong> ${monster.name} menyerang balik dengan ganas! (-${hpLoss} HP). Kamu mundur.`, "system");
+        addLog(`❌ Gagal! Kamu terluka parah oleh ${monster.name} (-${hpLoss} HP).`, "system");
     }
 
     if (PLAYER.status.hp <= 0) {
-        alert("EDRIN HALE TUMBANG. Loading Auto-save...");
+        alert("EDRIN TUMBANG.");
         loadGame("auto");
     }
     updateUI();
 }
 
-// --- TRAVEL & UTILS ---
 function actionTravel() {
     if (PLAYER.status.stamina < 15) { addLog("⚠️ Butuh 15 Stamina.", "system"); return; }
-    let menu = `<strong>🗺️ PILIH TUJUAN:</strong><br><br>`;
+    let menu = `<strong>🗺️ PILIH TUJUAN:</strong><br>`;
     const locs = [
         { id: "Valeryn", name: "🏰 Valeryn", h: 2, cost: 10 },
         { id: "greywood", name: "🌲 Greywood", h: 3, cost: 20 },
-        { id: "river_karth", name: "💧 River Karth", h: 2, cost: 15 },
-        { id: "stonefall", name: "⛰️ Stonefall", h: 5, cost: 40 },
-        { id: "ashplain", name: "🔥 Ashplain", h: 7, cost: 60 }
+        { id: "river_karth", name: "💧 River Karth", h: 2, cost: 15 }
     ];
     locs.forEach(l => {
         if (l.id !== PLAYER.location) {
-            menu += `<div class="act-btn" onclick="startTravel('${l.id}',${l.h},${l.cost})">${l.name} (${l.h}j)</div><br>`;
+            menu += `<div class="act-btn" onclick="startTravel('${l.id}',${l.h},${l.cost})">${l.name}</div>`;
         }
     });
     addLog(menu, "system");
@@ -285,8 +458,10 @@ function actionTravel() {
 
 function startTravel(zone, h, cost) {
     PLAYER.status.stamina -= cost;
+    PLAYER.status.hygiene -= 10;
     passTime(h * 60, false);
     PLAYER.location = zone;
+    updateNPCLiveState();
     addLog(`🚶 Kamu menempuh perjalanan ke <strong>${zone.toUpperCase()}</strong>.`, "narrator");
     updateUI();
 }
@@ -294,13 +469,15 @@ function startTravel(zone, h, cost) {
 function updateUI() {
     if (!PLAYER || !WORLD) return;
     let m = WORLD.minute < 10 ? "0"+WORLD.minute : WORLD.minute;
-    document.getElementById("world-clock").innerHTML = `Hari ${WORLD.day} - ${WORLD.hour}:${m}<br><span style="color:var(--accent)">${WORLD.weather}</span>`;
+    document.getElementById("world-clock").innerHTML = `Hari ${WORLD.day} - ${WORLD.hour}:${m}<br><small>${WORLD.weather}</small>`;
     document.getElementById("p-level").innerText = PLAYER.stats.level;
     document.getElementById("p-name").innerText = PLAYER.identity.name;
     document.getElementById("p-class").innerText = PLAYER.identity.role;
+    
     setBar("hp", PLAYER.status.hp, PLAYER.status.maxHp);
     setBar("stam", PLAYER.status.stamina, PLAYER.status.maxStam);
     setBar("exp", PLAYER.stats.exp, PLAYER.stats.maxExp);
+    
     document.getElementById("val-str").innerText = PLAYER.stats.str;
     document.getElementById("val-agi").innerText = PLAYER.stats.agi;
     document.getElementById("val-int").innerText = PLAYER.stats.int;
@@ -308,18 +485,15 @@ function updateUI() {
     
     const list = document.getElementById("npc-list-ui");
     list.innerHTML = "";
-    if (PLAYER.location === "Valeryn") {
-        const npcs = NPC_DB["Valeryn"] || [];
-        npcs.forEach(n => {
-            let btn = document.createElement("div");
-            btn.className = "act-btn";
-            btn.innerHTML = `💬 ${n.name} (Aff:${n.affinity})`;
-            btn.onclick = () => startDialogue(n);
-            list.appendChild(btn);
-        });
-    } else {
-        list.innerHTML = `<div style="text-align:center; padding:5px; color:#aaa; font-size:0.8em;">Wilayah: ${PLAYER.location.replace("_"," ").toUpperCase()}</div>`;
-    }
+    const npcs = NPC_DB[PLAYER.location] || [];
+    npcs.forEach(n => {
+        let btn = document.createElement("div");
+        btn.className = "act-btn";
+        const label = n.id.startsWith("gen_") && !n.isKnown ? `❓ Seseorang (${n.role})` : `💬 ${n.name}`;
+        btn.innerHTML = `${label} <br><small>${n.currentLoc} | ${n.mood}</small>`;
+        btn.onclick = () => startDialogue(n);
+        list.appendChild(btn);
+    });
 }
 
 function setBar(id, cur, max) {
@@ -327,7 +501,7 @@ function setBar(id, cur, max) {
     const bar = document.getElementById(`${id}-bar`);
     const txt = document.getElementById(`${id}-txt`);
     if(bar) bar.style.width = `${pct}%`;
-    if(txt) txt.innerText = `${cur}/${max}`;
+    if(txt) txt.innerText = `${Math.floor(cur)}/${max}`;
 }
 
 function gainExp(amt) {
@@ -338,8 +512,7 @@ function gainExp(amt) {
         PLAYER.stats.maxExp = Math.floor(PLAYER.stats.maxExp * 1.5);
         PLAYER.status.maxHp += 15;
         PLAYER.status.hp = PLAYER.status.maxHp;
-        PLAYER.stats.str++; PLAYER.stats.agi++;
-        addLog(`🎉 <strong>LEVEL UP: ${PLAYER.stats.level}</strong>`, "system");
+        addLog(`🎉 <strong>LEVEL UP!</strong>`, "system");
     }
 }
 
@@ -351,19 +524,36 @@ function passTime(mins, log=true) {
 
 async function startDialogue(npc) {
     if(currentTarget) return;
+
+    if (npc.id.startsWith("gen_") && !npc.isKnown) {
+        const choice = confirm(`Kamu belum mengenal ${npc.name}. Ingin mencoba berkenalan?`);
+        if (!choice) { addLog(`Kamu memutuskan untuk tidak menyapa orang asing itu.`, "narrator"); return; }
+        npc.isKnown = true;
+        npc.affinity += 5;
+        addLog(`Kamu menyapa orang asing itu. Ternyata namanya adalah ${npc.name}.`, "narrator");
+    }
+
     currentTarget = npc;
     document.getElementById("npc-indicator").style.display="block";
-    document.getElementById("target-name").innerText=npc.name;
-    const res = await callGemini(`Role:${npc.name}. Affinity:${npc.affinity}. Memori:${npc.memories.join(". ")}`, "Sapa Edrin.");
-    addLog(res, "npc", npc.name);
+    document.getElementById("target-name").innerText = `${npc.name} (${npc.currentLoc})`;
+    
+    let tradeMsg = "";
+    if (npc.inventory && npc.inventory.length > 0) {
+        tradeMsg = "<br><strong>Barang:</strong><br>" + npc.inventory.map(i => {
+            const d = getItem(i.id);
+            return `- ${d.name} (${i.qty}) - ${Math.floor(d.val * WORLD.economyMod)}g`;
+        }).join("<br>");
+        addLog(`Ketik "beli [nama]" atau "jual [nama]".`, "system");
+    }
+
+    const res = await callGemini(`Sapa Edrin. Role:${npc.name}. Mood:${npc.mood}.`, "Halo.");
+    addLog(res + tradeMsg, "npc", npc.name);
 }
 
 function endDialogue() {
-    if(currentTarget) {
-        addLog("Mengakhiri percakapan.", "system");
-        currentTarget=null;
-        document.getElementById("npc-indicator").style.display="none";
-    }
+    currentTarget = null;
+    document.getElementById("npc-indicator").style.display="none";
+    addLog("Percakapan berakhir.", "system");
 }
 
 async function callGemini(sys, user) {
@@ -383,9 +573,30 @@ async function summarizeMemory(npc, inp, res) {
     } catch(e){}
 }
 
-function actionInventory() { addLog(`Tas: ${PLAYER.inventory.map(i=>i.name).join(", ") || "Kosong"}`, "system"); }
-function actionStatus() { addLog(`Edrin Hale | Reputasi Valeryn: ${PLAYER.reputation.valeryn}`, "system"); }
-function actionLook() { addLog(`Lokasi: ${PLAYER.location} | Cuaca: ${WORLD.weather}`, "system"); }
-function actionRest() { passTime(120); PLAYER.status.hp+=20; PLAYER.status.stamina+=40; addLog("Istirahat selesai.", "system"); updateUI(); }
+function actionLook() {
+    if (PLAYER.location !== "Valeryn" && Math.random() < 0.3) {
+        const predators = ["Serigala Greywood", "Elang Batu", "Beruang Coklat"];
+        const prey = ["Tikus Lumut", "Kelinci", "Rusa"];
+        const p = predators[Math.floor(Math.random() * predators.length)];
+        const pr = prey[Math.floor(Math.random() * prey.length)];
+        addLog(`👁️ <i>Di kejauhan, kamu melihat seekor ${p} sedang memangsa bangkai ${pr}.</i>`, "narrator");
+    } else {
+        addLog(`Lokasi: ${PLAYER.location} | Cuaca: ${WORLD.weather}`, "system");
+    }
+}
+
+function actionRest() { 
+    passTime(480); 
+    PLAYER.status.sleep = 0; 
+    PLAYER.status.maxStam = INITIAL_STATE.player.status.maxStam;
+    PLAYER.status.hp = Math.min(PLAYER.status.maxHp, PLAYER.status.hp + 40);
+    PLAYER.status.stamina = PLAYER.status.maxStam;
+    if (PLAYER.location === "Valeryn") PLAYER.status.hygiene = 100; 
+    addLog("Istirahat selesai. Tubuhmu terasa segar dan bersih.", "system"); 
+    updateUI(); 
+}
+
+function actionInventory() { addLog(`Tas: ${PLAYER.inventory.map(i=>i.name + " (x"+(i.qty||1)+")").join(", ") || "Kosong"}`, "system"); }
+function actionStatus() { addLog(`Gold: ${PLAYER.status.gold} | Tidur: ${Math.floor(PLAYER.status.sleep)}j | Kebersihan: ${Math.floor(PLAYER.status.hygiene)}%`, "system"); }
 
 document.getElementById("input-txt").addEventListener("keypress", (e) => { if (e.key === "Enter") handleInput(); });
