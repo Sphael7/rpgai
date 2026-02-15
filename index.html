@@ -18,6 +18,12 @@
                 <span>🗣️ Bicara dengan: <strong id="target-name">...</strong></span>
                 <span style="float:right; cursor:pointer; color:#b94a48; font-weight:bold;" onclick="endDialogue()">[AKHIRI]</span>
             </div>
+
+            <div class="trade-toolbar" style="display:flex; gap:8px; margin-bottom:8px;">
+                <button onclick="setTradePrefix('/jual ')" style="background:rgba(255, 165, 0, 0.2); color:#ffa500; border:1px solid #ffa500; border-radius:4px; padding:3px 12px; cursor:pointer; font-size:0.8em; font-weight:bold;">🛒 JUAL</button>
+                <button onclick="setTradePrefix('/beli ')" style="background:rgba(0, 191, 255, 0.2); color:#00bfff; border:1px solid #00bfff; border-radius:4px; padding:3px 12px; cursor:pointer; font-size:0.8em; font-weight:bold;">💰 BELI</button>
+                <button onclick="setTradePrefix('/beri ')" style="background:rgba(144, 238, 144, 0.2); color:#90ee90; border:1px solid #90ee90; border-radius:4px; padding:3px 12px; cursor:pointer; font-size:0.8em; font-weight:bold;">🎁 BERI</button>
+            </div>
             
             <div class="input-wrapper">
                 <input type="text" id="input-txt" placeholder="Ketik tindakan atau ucapan..." autocomplete="off">
@@ -35,7 +41,7 @@
             </div>
             <div>
                 <div id="p-name" style="font-weight:bold; font-size:1.2em; color:white;">Loading...</div>
-                <div id="p-class" style="color:#8be9fd; font-size:0.9em;">Loading...</div>
+                <div id="p-class" style="color:#8be9fd; font-size:0.9em;">Hunter</div>
             </div>
         </div>
 
@@ -64,8 +70,7 @@
             ORANG SEKITAR 
             <span onclick="generateNewNPC()" style="cursor:pointer; float:right; color:var(--accent);" title="Cari orang baru">➕</span>
         </div>
-        <div id="npc-list-ui" class="action-grid">
-            </div>
+        <div id="npc-list-ui" class="action-grid"></div>
 
         <div class="section-title">AKSI</div>
         <div class="action-grid">
@@ -81,20 +86,52 @@
             <span id="world-clock">Hari 1 - 08:00</span>
             <br><br>
             <div style="display:flex; justify-content:center; gap:10px;">
-                <button onclick="loadGame('auto')" style="background:none; border:1px solid #333; color:#888; cursor:pointer; padding:5px 10px; border-radius:4px;">Load Auto-Save</button>
-                <button onclick="clearSave()" style="background:none; border:none; color:#b94a48; cursor:pointer; text-decoration:underline;">Hard Reset</button>
+                <button onclick="loadGame('auto')" style="background:none; border:1px solid #333; color:#888; cursor:pointer; padding:5px 10px; border-radius:4px;">Auto Load</button>
+                <button onclick="resetGame()" style="background:none; border:none; color:#b94a48; cursor:pointer; text-decoration:underline;">Hard Reset</button>
             </div>
         </div>
     </div>
 </div>
 
 <script src="api.js"></script>
-<script src="lore.js"></script>
-<script src="items.js"></script>
-<script src="monsters.js"></script>
-<script src="notif.js"></script>
-<script src="shops.js"></script>
-<script src="game.js"></script>
+
+<script src="data/lore.js"></script>
+<script src="data/items.js"></script>
+<script src="data/monsters.js"></script>
+<script src="data/notif.js"></script>
+<script src="data/shops.js"></script>
+<script src="data/npc_brains.js"></script>
+<script src="data/npc_templates.js"></script>
+
+<script src="script/state.js"></script>
+<script src="script/ui.js"></script>
+<script src="script/engine.js"></script>
+<script src="script/trade.js"></script>
+<script src="script/actions.js"></script>
+
+<script>
+    function setTradePrefix(prefix) {
+        const input = document.getElementById("input-txt");
+        if (input) {
+            input.value = prefix;
+            input.focus();
+        }
+    }
+
+    function resetGame() {
+        if(confirm("Hapus semua progress? Game akan dimulai ulang.")) {
+            hardReset();
+            location.reload();
+        }
+    }
+
+    // Jalankan Game
+    window.onload = function() {
+        console.log("Avarath: Memuat Modul...");
+        loadGame("main");
+        startGameLoop();
+    };
+</script>
 
 </body>
 </html>

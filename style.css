@@ -78,6 +78,34 @@ body {
     min-height: 0; /* FIX FLEXBOX SCROLL BUG */
 }
 
+/* Style untuk Log Transaksi di Chat */
+.msg.mode-jual {
+    background: rgba(255, 165, 0, 0.15);
+    backdrop-filter: blur(10px);
+    border-left: 4px solid #ffa500;
+    border-radius: 8px;
+    padding: 8px;
+    margin: 5px 0;
+}
+
+.msg.mode-beli {
+    background: rgba(0, 191, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-left: 4px solid #00bfff;
+    border-radius: 8px;
+    padding: 8px;
+    margin: 5px 0;
+}
+
+.msg.mode-beri {
+    background: rgba(144, 238, 144, 0.15);
+    backdrop-filter: blur(10px);
+    border-left: 4px solid #90ee90;
+    border-radius: 8px;
+    padding: 8px;
+    margin: 5px 0;
+}
+
 /* Area Input (Footer) */
 .input-area {
     flex-shrink: 0; /* Jangan mengecil */
@@ -163,6 +191,16 @@ button.send-btn:hover { background: var(--accent); color: black; }
 }
 .act-btn:hover { border-color: var(--accent); color: white; background: #222; }
 
+/* Animasi Transisi untuk Input */
+#input-txt {
+    transition: all 0.3s ease;
+}
+
+/* Warna latar belakang kolom input berdasarkan mode */
+#input-txt.mode-jual { border: 2px solid #ffa500; background: rgba(255, 165, 0, 0.05); }
+#input-txt.mode-beli { border: 2px solid #00bfff; background: rgba(0, 191, 255, 0.05); }
+#input-txt.mode-beri { border: 2px solid #90ee90; background: rgba(144, 238, 144, 0.05); }
+
 /* --- 6. CHAT BUBBLES --- */
 .msg { max-width: 90%; line-height: 1.6; font-size: 0.95rem; animation: fadeIn 0.3s ease; position: relative; }
 .msg.narrator { color: #ccc; font-style: italic; border-left: 2px solid #444; padding-left: 15px; margin: 10px 0; }
@@ -172,3 +210,40 @@ button.send-btn:hover { background: var(--accent); color: black; }
 .msg.system { align-self: center; font-size: 0.8rem; color: #666; border-top: 1px solid #222; padding-top: 5px; margin: 15px 0; width: 100%; text-align: center; }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+/* --- 7. PENGEMBANGAN KHUSUS TERIMA/TOLAK --- */
+.trade-confirm-box {
+    animation: tradeSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes tradeSlideIn {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.trade-confirm-box button {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+}
+
+.trade-confirm-box button:first-of-type:hover {
+    background: #27ae60 !important;
+    box-shadow: 0 0 15px rgba(46, 204, 113, 0.4);
+    transform: translateY(-2px);
+}
+
+.trade-confirm-box button:last-of-type:hover {
+    background: #c0392b !important;
+    box-shadow: 0 0 15px rgba(231, 76, 60, 0.4);
+    transform: translateY(-2px);
+}
+
+.trade-confirm-box strong {
+    font-weight: 600;
+    text-shadow: 0 0 10px rgba(139, 233, 253, 0.2);
+}
